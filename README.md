@@ -50,39 +50,45 @@
 
 ## 프로젝트 발표 자료
 
-프로젝트 목적부터 데이터 수집, 분석, 운영 개선 및 평가 자료까지 9장의 슬라이드로 정리했습니다.
+프로젝트 목표부터 데이터 수집, 분석, 운영 개선 및 평가 검증까지 **9장의 발표 자료를 순서대로 배치**했습니다.
 
-<details>
-<summary>슬라이드 1–9 펼치기</summary>
+### 01. 목표
 
-**01. 목표**  
-![Goal](slides/1.png)
+![Slide 1 - Goal](slides/1.png)
 
-**02. 진행 과정**  
-![Process](slides/2.png)
+### 02. 진행 과정
 
-**03. 문제 정의**  
-![Problem definition](slides/3.png)
+![Slide 2 - Process](slides/2.png)
 
-**04. 데이터 수집 및 관리 체계**  
-![Collection and management](slides/4.png)
+### 03. 문제 정의
 
-**05. 2025년 운영 데이터 분석**  
-![2025 baseline](slides/5.png)
+![Slide 3 - 문제 정의](slides/3.png)
 
-**06. 설문·운영 기록 기반 개선 방향**  
-![Operating improvements](slides/6.png)
+### 04. 개선점(데이터) 수집
 
-**07. 2025–2026년 운영 지표 비교**  
-![Year-over-year metrics](slides/7.png)
+![Slide 4 - 개선점(데이터) 수집](slides/4.png)
 
-**08. 기관 평가 및 지표 요약**  
-![Evaluation summary](slides/8.png)
+### 05. 정기 분석 및 개선방향 (1)
 
-**09. 한계 및 후속 과제**  
-![Limitations](slides/9.png)
+![Slide 5 - 정기 분석 및 개선방향(1)](slides/5.png)
 
-</details>
+### 06. 정기 분석 및 개선방향 (2)
+
+![Slide 6 - 정기 분석 및 개선방향(2)](slides/6.png)
+
+### 07. 결과 산출 및 평가 검증 (1)
+
+![Slide 7 - 결과 산출 및 평가 검증(1)](slides/7.png)
+
+### 08. 결과 산출 및 평가 검증 (2)
+
+![Slide 8 - 결과 산출 및 평가 검증(2)](slides/8.png)
+
+### 09. 한계 및 개선 가능성
+
+![Slide 9 - 한계 및 개선 가능성](slides/9.png)
+
+---
 
 ### 평가와 대외 성과의 구분
 
