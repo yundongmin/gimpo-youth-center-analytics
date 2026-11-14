@@ -1,0 +1,51 @@
+{
+  "jan_may": {
+    "period": "01-05",
+    "visitors": {
+      "2025": 1420,
+      "2026": 3315,
+      "ratio": 2.3345
+    },
+    "enrollments": {
+      "2025": 594,
+      "2026": 1220,
+      "ratio": 2.0539
+    }
+  },
+  "mar_jun": {
+    "period": "03-06",
+    "visitors": {
+      "2025": 1690,
+      "2026": 2827,
+      "ratio": 1.6728
+    },
+    "enrollments": {
+      "2025": 661,
+      "2026": 920,
+      "ratio": 1.3918
+    }
+  },
+  "reported_rates": {
+    "2025_completion": {
+      "percent": 57.6,
+      "period": "2025-01~2025-12",
+      "basis": "annual, reported in slides"
+    },
+    "2026_completion": {
+      "percent": 92.4,
+      "period": "2026-01~2026-05",
+      "basis": "reported valid sample in slides; denominator and inclusion rules need confirmation"
+    },
+    "2025_sns_acquisition": {
+      "percent": 26.3,
+      "period": "2025-03~2025-10",
+      "basis": "reported in slides"
+    },
+    "2026_sns_acquisition": {
+      "percent": 47.5,
+      "period": "2026-01~2026-05",
+      "basis": "reported in slides; numerator unavailable"
+    }
+  },
+  "note": "Only monthly counts are recomputed. Reported rates use different periods and are not causal evidence."
+}

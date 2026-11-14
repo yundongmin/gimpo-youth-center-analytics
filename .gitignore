@@ -1,17 +1,28 @@
-# 원본 개인정보 데이터 및 엑셀/CSV 파일 업로드 차단
+# Individual or institutional records and generated private exports
+data/private/
 raw_data/
 *.xlsx
 *.xls
 *.csv
+*.parquet
+*.db
+*.sqlite
 
-# 파이썬 실행 캐시 및 가상환경 폴더 제외
-__pycache__/
-*.py[cod]
+# Environment and caches
 .venv/
 venv/
-
-# 주피터 노트북 및 OS/에디터 임시 파일 제외
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
 .ipynb_checkpoints/
 .DS_Store
 Thumbs.db
 .vscode/
+.idea/
+
+# Secrets and accidental exports
+.env
+.env.*
+*.key
+*.pem

@@ -1,72 +1,93 @@
-import os
-import glob
-import hashlib
-import pandas as pd
+"""Private attendance-log preparation; missing check-outs are not inferred."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
+
+# Explicit allowlist prevents additional columns (including free-text PII) from leaking.
+REQUIRED = {"check_in", "check_out", "purpose"}
+OPTIONAL = {"site"}
+UTILITY_PURPOSES = {"출력", "대여"}
+# Open-text location labels are not exported. Add a known site only after schema review.
+KNOWN_SITES = {"본원", "외곽", "하성", "통진", "고촌", "장기", "양촌", "운양", "구래"}
 
 
-def mask_pii(df):
-    # 성명 SHA-256 해시 변환 및 생년월일 연도만 추출
-    if "user_name" in df.columns:
-        df["user_id"] = df["user_name"].astype(str).apply(
-            lambda x: hashlib.sha256(x.strip().encode("utf-8")).hexdigest()[:12]
-        )
-        df = df.drop(columns=["user_name"])
+def clean_log(frame: pd.DataFrame, *, source_label: str = "workbook_001", short_visit_min: int = 5) -> pd.DataFrame:
+    missing = REQUIRED - set(frame.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {', '.join(sorted(missing))}")
+    if short_visit_min < 0:
+        raise ValueError("short_visit_min must be non-negative")
 
-    if "birth_date" in df.columns:
-        df["birth_year"] = df["birth_date"].astype(str).str[:4]
-        df = df.drop(columns=["birth_date"])
+    # No names, personal identifiers, dates of birth, contact details, or notes are retained.
+    fields = sorted(REQUIRED | (OPTIONAL & set(frame.columns)))
+    result = frame.loc[:, fields].copy()
+    result["source_batch"] = source_label
+    result["source_row"] = np.arange(2, len(result) + 2)
+    result["check_in"] = pd.to_datetime(result["check_in"], errors="coerce")
+    result["check_out"] = pd.to_datetime(result["check_out"], errors="coerce")
 
-    return df
+    # Restrict open-ended purpose text to known categories. The original value is discarded.
+    purpose = result["purpose"].fillna("").astype(str).str.strip()
+    known_purposes = {"프로그램", "스터디", "대관", "출력", "대여", "상담", "기타"}
+    result["purpose"] = purpose.where(purpose.isin(known_purposes), "기타")
+    if "site" in result:
+        site = result["site"].fillna("").astype(str).str.strip()
+        result["site"] = site.where(site.isin(KNOWN_SITES), "기타")
+
+    minutes = (result["check_out"] - result["check_in"]).dt.total_seconds() / 60
+    missing_checkin = result["check_in"].isna()
+    missing_checkout = result["check_out"].isna()
+    reversed_times = minutes.lt(0)
+    valid_duration = ~(missing_checkin | missing_checkout | reversed_times)
+    result["observed_minutes"] = minutes.where(valid_duration).astype("Float64")
+
+    conditions = [
+        missing_checkin,
+        missing_checkout,
+        reversed_times,
+        result["purpose"].isin(UTILITY_PURPOSES),
+        result["observed_minutes"].lt(short_visit_min).fillna(False),
+    ]
+    outcomes = ["invalid_checkin", "missing_checkout", "invalid_time_order", "utility_visit", "short_visit"]
+    result["visit_type"] = np.select(conditions, outcomes, default="regular_visit")
+    return result
 
 
-def impute_checkout_time(df):
-    # 퇴실 미체크(NaN) 보정: 19시 이전 입실 -> 19:00 점검 기준 / 19시 이후 입실 -> 21:00 마감 기준
-    df["check_in"] = pd.to_datetime(df["check_in"])
-    df["check_out"] = pd.to_datetime(df["check_out"], errors="coerce")
-
-    na_mask = df["check_out"].isna()
-    date_str = df.loc[na_mask, "check_in"].dt.strftime("%Y-%m-%d")
-    is_night = df.loc[na_mask, "check_in"].dt.hour >= 19
-
-    fallback_ts = np.where(is_night, date_str + " 21:00:00", date_str + " 19:00:00")
-    df.loc[na_mask, "check_out"] = pd.to_datetime(fallback_ts)
-    df["is_imputed"] = na_mask
-    return df
-
-
-def tag_short_visits(df, threshold_min=5):
-    # 단순 출력·물품 대여 등 5분 미만 단기 방문 노이즈 분리
-    duration = (df["check_out"] - df["check_in"]).dt.total_seconds() / 60.0
-    df["stay_min"] = duration.clip(lower=0)
-
-    noise_cond = (df["stay_min"] < threshold_min) | (df["purpose"].isin(["출력", "대여"]))
-    df["visit_type"] = np.where(noise_cond, "utility_noise", "regular_stay")
-    return df
+def prepare_workbooks(input_dir: Path, output_file: Path, *, short_visit_min: int = 5) -> dict:
+    files = sorted(input_dir.glob("*.xlsx"))
+    if not files:
+        raise FileNotFoundError(f"No .xlsx workbooks found in {input_dir}")
+    rows = []
+    for index, path in enumerate(files, 1):
+        frame = pd.read_excel(path, engine="openpyxl")
+        rows.append(clean_log(frame, source_label=f"batch_{index:03d}", short_visit_min=short_visit_min))
+    merged = pd.concat(rows, ignore_index=True)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    merged.to_csv(output_file, index=False, encoding="utf-8-sig")
+    return {
+        "total_rows": len(merged),
+        "missing_checkout": int((merged["visit_type"] == "missing_checkout").sum()),
+        "invalid_time_order": int((merged["visit_type"] == "invalid_time_order").sum()),
+        "short_visits": int((merged["visit_type"] == "short_visit").sum()),
+        "utility_visits": int((merged["visit_type"] == "utility_visit").sum()),
+        "note": "Row-level output is private. Review schema and authority before any external use.",
+    }
 
 
-def run_preprocessing(raw_dir="data/raw", out_path="data/processed/merged_logs.csv"):
-    excel_files = glob.glob(os.path.join(raw_dir, "*.xlsx"))
-    if not excel_files:
-        print(f"[Skip] '{raw_dir}' 경로에 원본 엑셀 파일이 없습니다. (개인정보 보안상 원본 데이터는 Git에서 제외됨)")
-        return None
-
-    frames = []
-    for fp in excel_files:
-        temp = pd.read_excel(fp)
-        temp["source_file"] = os.path.basename(fp)
-        frames.append(temp)
-
-    merged = pd.concat(frames, ignore_index=True)
-    merged = mask_pii(merged)
-    merged = impute_checkout_time(merged)
-    merged = tag_short_visits(merged)
-
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    merged.to_csv(out_path, index=False, encoding="utf-8-sig")
-    print(f"[Done] 전처리 완료: 총 {len(merged):,}건 -> {out_path}")
-    return merged
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input-dir", type=Path, default=Path("data/private"))
+    parser.add_argument("--output", type=Path, default=Path("data/private/processed_logs.csv"))
+    parser.add_argument("--short-visit-min", type=int, default=5)
+    args = parser.parse_args()
+    stats = prepare_workbooks(args.input_dir, args.output, short_visit_min=args.short_visit_min)
+    print(f"Local preprocessing: {stats}")
 
 
 if __name__ == "__main__":
-    run_preprocessing()
+    main()

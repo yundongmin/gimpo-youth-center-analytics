@@ -1,0 +1,20 @@
+name: Python checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Korean font for chart rendering
+        run: sudo apt-get update -qq && sudo apt-get install -y fonts-noto-cjk
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: python src/eda_2025_baseline.py --output outputs/ci_baseline.png
+      - run: python src/evaluate_2026_kpi.py --output outputs/ci_kpi.png
